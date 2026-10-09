@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Buscar Respuestas</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <header>
+        <h1>Directorio de Respuestas</h1>
+    </header>
+    <div class="container">
+        <div class="form-group">
+            <input type="text" id="searchInput" placeholder="Buscar por Nombre o Apellidos...">
+            <button onclick="buscar()" class="btn">Buscar</button>
+        </div>
+        <div style="overflow-x: auto;">
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Nombre y Apellidos</th>
+                        <th>Medio de Transporte</th>
+                        <th>Problema Principal</th>
+                        <th>Fecha</th>
+                    </tr>
+                </thead>
+                <tbody id="resultadosTabla">
+                    <!-- Los resultados se insertan aquí vía JS -->
+                </tbody>
+            </table>
+        </div>
+        <br>
+        <a href="index.html" class="btn">Volver al Inicio</a>
+    </div>
+
+    <!-- MODELO DE PIE DE PÁGINA -->
+    <footer id="mi-pie-de-pagina">
+        <p>Diseñado y desarrollado por: <strong>[Tu Nombre/Empresa Aquí]</strong></p>
+        <p>Contacto: <a href="mailto:tuemail@ejemplo.com" style="color: #3498db;">tuemail@ejemplo.com</a> | Redes Sociales: @TuUsuario</p>
+        <p>&copy; 2026 Todos los derechos reservados.</p>
+    </footer>
+
+    <script>
+        function buscar() {
+            const query = document.getElementById('searchInput').value;
+            fetch(`/api/respuestas?q=${encodeURIComponent(query)}`)
+                .then(res => res.json())
+                .then(data => {
+                    const tbody = document.getElementById('resultadosTabla');
+                    tbody.innerHTML = '';
+                    data.forEach(fila => {
+                        const tr = document.createElement('tr');
+                        tr.innerHTML = `
+                            <td>${fila.id}</td>
+                            <td>${fila.nombre} ${fila.apellidos}</td>
+                            <td>${fila.medio}</td>
+                            <td>${fila.problema}</td>
+                            <td>${new Date(fila.fecha).toLocaleString('es-ES')}</td>
+                        `;
+                        tbody.appendChild(tr);
+                    });
+                });
+        }
+        // Cargar todas las respuestas inicialmente
+        buscar();
+    </script>
+</body>
+</html>

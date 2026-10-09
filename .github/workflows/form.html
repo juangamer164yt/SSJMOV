@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Encuesta de Movilidad</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <header>
+        <h1>Formulario de Encuesta</h1>
+    </header>
+    <div class="container">
+        <form id="movilidadForm">
+            <!-- DATOS PERSONALES -->
+            <div class="form-group">
+                <label>Nombre(s):</label>
+                <input type="text" name="nombre" required>
+            </div>
+            <div class="form-group">
+                <label>Apellidos:</label>
+                <input type="text" name="apellidos" required>
+            </div>
+
+            <hr>
+            <h3>Bloque 1: Perfil Demográfico</h3>
+            
+            <div class="form-group">
+                <label>1. ¿Cuál es su rango de edad?</label>
+                <div class="radio-group"><input type="radio" name="edad" value="Menor de 18 años" required> Menor de 18 años</div>
+                <div class="radio-group"><input type="radio" name="edad" value="18 a 25 años"> 18 a 25 años</div>
+                <div class="radio-group"><input type="radio" name="edad" value="26 a 45 años"> 26 a 45 años</div>
+                <div class="radio-group"><input type="radio" name="edad" value="46 a 60 años"> 46 a 60 años</div>
+                <div class="radio-group"><input type="radio" name="edad" value="Más de 60 años"> Más de 60 años</div>
+            </div>
+
+            <div class="form-group">
+                <label>2. Género:</label>
+                <div class="radio-group"><input type="radio" name="genero" value="Femenino" required> Femenino</div>
+                <div class="radio-group"><input type="radio" name="genero" value="Masculino"> Masculino</div>
+                <div class="radio-group"><input type="radio" name="genero" value="Otro / Prefiero no decirlo"> Otro / Prefiero no decirlo</div>
+            </div>
+
+            <div class="form-group">
+                <label>3. ¿Cuál es su ocupación principal?</label>
+                <div class="radio-group"><input type="radio" name="ocupacion" value="Trabajador(a) por cuenta ajena" required> Trabajador(a) por cuenta ajena</div>
+                <div class="radio-group"><input type="radio" name="ocupacion" value="Trabajador(a) independiente / Emprendedor(a)"> Trabajador(a) independiente / Emprendedor(a)</div>
+                <div class="radio-group"><input type="radio" name="ocupacion" value="Estudiante"> Estudiante</div>
+                <div class="radio-group"><input type="radio" name="ocupacion" value="Desempleado(a)"> Desempleado(a)</div>
+                <div class="radio-group"><input type="radio" name="ocupacion" value="Jubilado(a) / Pensionado(a)"> Jubilado(a) / Pensionado(a)</div>
+                <div class="radio-group"><input type="radio" name="ocupacion" value="Labores del hogar"> Labores del hogar</div>
+            </div>
+
+            <hr>
+            <h3>Bloque 2: Hábitos de Desplazamiento Diario</h3>
+
+            <div class="form-group">
+                <label>4. ¿Cuál es el motivo principal de sus viajes diarios? (Seleccione solo una opción)</label>
+                <div class="radio-group"><input type="radio" name="motivo" value="Trabajo" required> Trabajo</div>
+                <div class="radio-group"><input type="radio" name="motivo" value="Estudio (Colegio / Universidad)"> Estudio (Colegio / Universidad)</div>
+                <div class="radio-group"><input type="radio" name="motivo" value="Compras / Abastecimiento"> Compras / Abastecimiento</div>
+                <div class="radio-group"><input type="radio" name="motivo" value="Trámites médicos o personales"> Trámites médicos o personales</div>
+                <div class="radio-group"><input type="radio" name="motivo" value="Ocio / Recreación"> Ocio / Recreación</div>
+            </div>
+
+            <div class="form-group">
+                <label>5. ¿Cuál es el medio de transporte que utiliza con mayor frecuencia? (Medio principal)</label>
+                <div class="radio-group"><input type="radio" name="medio" value="A pie" required> A pie</div>
+                <div class="radio-group"><input type="radio" name="medio" value="Bicicleta (propia o pública)"> Bicicleta (propia o pública)</div>
+                <div class="radio-group"><input type="radio" name="medio" value="Vehículo particular (Carro / Automóvil)"> Vehículo particular (Carro / Automóvil)</div>
+                <div class="radio-group"><input type="radio" name="medio" value="Motocicleta"> Motocicleta</div>
+                <div class="radio-group"><input type="radio" name="medio" value="Transporte público masivo (Metro, autobús de tránsito rápido, tren)"> Transporte público masivo</div>
+                <div class="radio-group"><input type="radio" name="medio" value="Transporte público colectivo (Autobús tradicional, microbús)"> Transporte público colectivo</div>
+                <div class="radio-group"><input type="radio" name="medio" value="Taxi / Aplicaciones de transporte (Uber, Didi, etc.)"> Taxi / Apps de transporte</div>
+            </div>
+
+            <div class="form-group">
+                <label>6. ¿Cuánto tiempo promedio tarda en llegar a su destino principal? (Solo ida)</label>
+                <div class="radio-group"><input type="radio" name="tiempo" value="Menos de 15 minutos" required> Menos de 15 minutos</div>
+                <div class="radio-group"><input type="radio" name="tiempo" value="Entre 15 y 30 minutos"> Entre 15 y 30 minutos</div>
+                <div class="radio-group"><input type="radio" name="tiempo" value="Entre 30 y 60 minutos"> Entre 30 y 60 minutos</div>
+                <div class="radio-group"><input type="radio" name="tiempo" value="Entre 1 y 2 horas"> Entre 1 y 2 horas</div>
+                <div class="radio-group"><input type="radio" name="tiempo" value="Más de 2 horas"> Más de 2 horas</div>
+            </div>
+
+            <div class="form-group">
+                <label>7. ¿En qué rango horario realiza su viaje de ida principal?</label>
+                <div class="radio-group"><input type="radio" name="horario" value="05:00 a.m. - 07:00 a.m." required> 05:00 a.m. - 07:00 a.m.</div>
+                <div class="radio-group"><input type="radio" name="horario" value="07:00 a.m. - 09:00 a.m."> 07:00 a.m. - 09:00 a.m.</div>
+                <div class="radio-group"><input type="radio" name="horario" value="09:00 a.m. - 12:00 p.m."> 09:00 a.m. - 12:00 p.m.</div>
+                <div class="radio-group"><input type="radio" name="horario" value="12:00 p.m. - 04:00 p.m."> 12:00 p.m. - 04:00 p.m.</div>
+                <div class="radio-group"><input type="radio" name="horario" value="04:00 p.m. - 08:00 p.m."> 04:00 p.m. - 08:00 p.m.</div>
+                <div class="radio-group"><input type="radio" name="horario" value="Horario nocturno (Después de las 08:00 p.m.)"> Horario nocturno</div>
+            </div>
+
+            <hr>
+            <h3>Bloque 3: Intermodalidad y Vehículos en el Hogar</h3>
+
+            <div class="form-group">
+                <label>8. ¿Necesita combinar más de un medio de transporte en un solo viaje diario?</label>
+                <div class="radio-group"><input type="radio" name="intermodalidad" value="Sí, realizo un transbordo (2 medios de transporte)" required> Sí, realizo un transbordo (2 medios de transporte)</div>
+                <div class="radio-group"><input type="radio" name="intermodalidad" value="Sí, realizo múltiples transbordos (3 o más medios)"> Sí, realizo múltiples transbordos (3 o más medios de transporte)</div>
+                <div class="radio-group"><input type="radio" name="intermodalidad" value="No, viajo de principio a fin en el mismo medio"> No, viajo de principio a fin en el mismo medio</div>
+            </div>
+
+            <div class="form-group">
+                <label>9. ¿De qué vehículos dispone su hogar? (Selección múltiple)</label>
+                <!-- Selección múltiple usa checkboxes -->
+                <div class="radio-group"><input type="checkbox" name="vehiculos" value="Ninguno"> Ninguno</div>
+                <div class="radio-group"><input type="checkbox" name="vehiculos" value="Carro / Automóvil"> Carro / Automóvil</div>
+                <div class="radio-group"><input type="checkbox" name="vehiculos" value="Motocicleta"> Motocicleta</div>
+                <div class="radio-group"><input type="checkbox" name="vehiculos" value="Bicicleta / Monopatín (Scooter)"> Bicicleta / Monopatín (Scooter)</div>
+            </div>
+
+            <hr>
+            <h3>Bloque 4: Percepción y Calidad de la Movilidad</h3>
+
+            <div class="form-group">
+                <label>10. ¿Qué factor valora más al momento de elegir su medio de transporte?</label>
+                <div class="radio-group"><input type="radio" name="factor" value="Rapidez / Tiempo de viaje" required> Rapidez / Tiempo de viaje</div>
+                <div class="radio-group"><input type="radio" name="factor" value="Costo económico"> Costo económico</div>
+                <div class="radio-group"><input type="radio" name="factor" value="Seguridad ante robos o accidentes"> Seguridad ante robos o accidentes</div>
+                <div class="radio-group"><input type="radio" name="factor" value="Comodidad"> Comodidad</div>
+            </div>
+
+            <div class="form-group">
+                <label>11. En una escala de 1 a 5, ¿cómo califica el estado general de las vías y el transporte en su ciudad?</label>
+                <div class="radio-group"><input type="radio" name="calidad" value="1 - Muy malo" required> 1 - Muy malo</div>
+                <div class="radio-group"><input type="radio" name="calidad" value="2 - Malo"> 2 - Malo</div>
+                <div class="radio-group"><input type="radio" name="calidad" value="3 - Regular"> 3 - Regular</div>
+                <div class="radio-group"><input type="radio" name="calidad" value="4 - Bueno"> 4 - Bueno</div>
+                <div class="radio-group"><input type="radio" name="calidad" value="5 - Excelente"> 5 - Excelente</div>
+            </div>
+
+            <div class="form-group">
+                <label>12. ¿Cuál considera que es el principal problema de movilidad en su zona?</label>
+                <div class="radio-group"><input type="radio" name="problema" value="El tráfico vehicular / Congestión" required> El tráfico vehicular / Congestión</div>
+                <div class="radio-group"><input type="radio" name="problema" value="El mal estado de las calles y avenidas"> El mal estado de las calles y avenidas</div>
+                <div class="radio-group"><input type="radio" name="problema" value="La falta de rutas de transporte público o bajas frecuencias"> La falta de rutas de transporte público o bajas frecuencias</div>
+                <div class="radio-group"><input type="radio" name="problema" value="La inseguridad ciudadana al transitar"> La inseguridad ciudadana al transitar</div>
+                <div class="radio-group"><input type="radio" name="problema" value="La falta de infraestructura para ciclistas y peatones (ciclorrutas, andenes)"> La falta de infraestructura para ciclistas y peatones (ciclorrutas, andenes)</div>
+            </div>
+
+            <button type="submit" class="btn" style="width: 100%; margin-top: 20px;">Enviar Respuestas</button>
+        </form>
+    </div>
+
+    <!-- MODELO DE PIE DE PÁGINA -->
+    <footer id="mi-pie-de-pagina">
+        <p>Diseñado y desarrollado por: <strong>[Tu Nombre/Empresa Aquí]</strong></p>
+        <p>Contacto: <a href="mailto:tuemail@ejemplo.com" style="color: #3498db;">tuemail@ejemplo.com</a> | Redes Sociales: @TuUsuario</p>
+        <p>&copy; 2026 Todos los derechos reservados.</p>
+    </footer>
+
+    <script>
+        document.getElementById('movilidadForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const formData = new FormData(this);
+            const data = Object.fromEntries(formData.entries());
+            
+            // Lógica especial para las casillas de verificación (checkboxes)
+            data.vehiculos = formData.getAll('vehiculos');
+
+            fetch('/api/submit', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            })
+            .then(response => response.json())
+            .then(result => {
+                if (result.success) {
+                    alert('¡Encuesta guardada con éxito!');
+                    window.location.href = 'index.html';
+                }
+            })
+            .catch(error => console.error('Error:', error));
+        });
+    </script>
+</body>
+</html>

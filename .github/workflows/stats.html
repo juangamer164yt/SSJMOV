@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Estadísticas</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <header>
+        <h1>Estadísticas en Tiempo Real</h1>
+    </header>
+    <div class="container">
+        <h3>Total de Encuestas Respondidas: <span id="totalEncuestas">0</span></h3>
+        <hr>
+        <h4>Uso de Medios de Transporte:</h4>
+        <ul id="listaMedios" style="line-height: 2;"></ul>
+        <br>
+        <a href="index.html" class="btn">Volver al Inicio</a>
+    </div>
+
+    <!-- MODELO DE PIE DE PÁGINA -->
+    <footer id="mi-pie-de-pagina">
+        <p>Diseñado y desarrollado por: <strong>[Tu Nombre/Empresa Aquí]</strong></p>
+        <p>Contacto: <a href="mailto:tuemail@ejemplo.com" style="color: #3498db;">tuemail@ejemplo.com</a> | Redes Sociales: @TuUsuario</p>
+        <p>&copy; 2026 Todos los derechos reservados.</p>
+    </footer>
+
+    <script>
+        function cargarEstadisticas() {
+            fetch('/api/stats')
+                .then(res => res.json())
+                .then(data => {
+                    document.getElementById('totalEncuestas').innerText = data.total;
+                    const ul = document.getElementById('listaMedios');
+                    ul.innerHTML = '';
+                    data.medios.forEach(item => {
+                        const li = document.createElement('li');
+                        // Muestra el medio de transporte y calcula un porcentaje básico
+                        let porcentaje = data.total > 0 ? ((item.cantidad / data.total) * 100).toFixed(1) : 0;
+                        li.innerHTML = `<strong>${item.medio}:</strong> ${item.cantidad} personas (${porcentaje}%)`;
+                        ul.appendChild(li);
+                    });
+                });
+        }
+        // Carga al inicio y actualiza cada 5 segundos
+        cargarEstadisticas();
+        setInterval(cargarEstadisticas, 5000); 
+    </script>
+</body>
+</html>
