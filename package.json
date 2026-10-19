@@ -1,0 +1,19 @@
+{
+  "name": "via-movilidad",
+  "private": true,
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "dev:cloudflare": "wrangler dev --local",
+    "deploy": "wrangler deploy"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "sql.js": "^1.15.0"
+  },
+  "devDependencies": {
+    "wrangler": "4.151.1"
+  }
+}
