@@ -1,0 +1,10 @@
+node_modules/
+.wrangler/
+.dev.vars
+.env
+.env.*
+server/.env
+server/movilidad.sqlite
+server/movilidad.sqlite.tmp
+server/movilidad.sqlite-shm
+server/movilidad.sqlite-wal
