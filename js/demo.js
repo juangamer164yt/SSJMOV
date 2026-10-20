@@ -5,6 +5,8 @@
    estadísticas reaccionan igual que con el servidor real.
    ===================================================================== */
 const _filas = [];
+const _codigosUsados = new Set();
+let _ultimaRespuestaEn = null;
 
 // Generador pseudoaleatorio con semilla fija: los datos de prueba son los mismos en cada carga.
 const _rng = (semilla) => () => ((semilla = (semilla * 1664525 + 1013904223) >>> 0) / 4294967296);
@@ -31,16 +33,24 @@ function _filaAleatoria() {
   return fila;
 }
 for (let i = 0; i < 80; i++) _filas.push(_filaAleatoria());
+_ultimaRespuestaEn = new Date().toISOString();
 
 /** Simula que llega una persona nueva (la llama estadisticas.js cada cierto tiempo). */
-function demoSimular() { _filas.push(_filaAleatoria()); }
+function demoSimular() {
+  _filas.push(_filaAleatoria());
+  _ultimaRespuestaEn = new Date().toISOString();
+}
 
 /** Equivalente a POST /api/respuestas en modo demo. */
 async function demoEnviar(datos) {
   await new Promise((r) => setTimeout(r, 400)); // simula la latencia de la red
+  const codigo = datos.codigo.replace(/[\s-]/g, '').toUpperCase();
+  if (_codigosUsados.has(codigo)) throw new Error('Este código ya fue utilizado.');
+  _codigosUsados.add(codigo);
   const fila = {};
   PREGUNTAS.forEach((p) => { fila[p.id] = p.tipo === 'multiple' ? _canonica(p, datos[p.id]) : datos[p.id]; });
   _filas.push(fila);
+  _ultimaRespuestaEn = new Date().toISOString();
 }
 
 /** Equivalente a GET /api/estadisticas en modo demo. */
@@ -51,5 +61,5 @@ async function demoDatos() {
     const c = (conteos[p.id] ??= {});
     c[f[p.id]] = (c[f[p.id]] || 0) + 1;
   }));
-  return armarEstadisticas(conteos, _filas.length);
+  return { ...armarEstadisticas(conteos, _filas.length), lastResponseAt: _ultimaRespuestaEn };
 }

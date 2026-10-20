@@ -1,12 +1,13 @@
 const path = require('path');
 const fs = require('fs');
+const { createHash, randomUUID } = require('crypto');
 const express = require('express');
 const initSqlJs = require('sql.js');
 // Mismo catálogo que usa el formulario: una sola fuente de verdad para preguntas, códigos y columnas.
 const { PREGUNTAS, armarEstadisticas } = require('./js/preguntas.js');
 
 const COLUMNAS = ['nombres', 'apellidos', ...PREGUNTAS.map((p) => p.id)];
-const archivoDb = path.join(__dirname, 'movilidad.sqlite');
+const archivoDb = process.env.MOBILITY_DB_PATH || path.join(__dirname, 'movilidad.sqlite');
 let SQL;
 let db;
 const identificadores = COLUMNAS.map((c) => `"${c}"`);
@@ -14,6 +15,10 @@ const crearTabla = `CREATE TABLE IF NOT EXISTS respuestas (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   ${identificadores.map((c) => `${c} TEXT NOT NULL`).join(',\n  ')},
   creado_en TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+)`;
+const crearTablaCodigos = `CREATE TABLE IF NOT EXISTS codigos_acceso (
+  codigo_hash TEXT PRIMARY KEY,
+  consumo_id TEXT UNIQUE
 )`;
 
 function ejecutar(sql, parametros = []) {
@@ -52,10 +57,14 @@ async function calcularEstadisticas() {
   const sql = PREGUNTAS.map((p) =>
     `SELECT '${p.id}' AS pregunta, "${p.id}" AS valor, COUNT(*) AS personas FROM respuestas GROUP BY "${p.id}"`).join(' UNION ALL ');
   const filas = await consultar(sql);
-  const meta = await consultarUno('SELECT COUNT(*) AS total FROM respuestas');
+  const meta = await consultarUno('SELECT COUNT(*) AS total, MAX(creado_en) AS ultima_respuesta FROM respuestas');
   const conteos = {};
   filas.forEach((f) => { (conteos[f.pregunta] ??= {})[String(f.valor)] = Number(f.personas); });
-  return armarEstadisticas(conteos, Number(meta.total));
+  const estadisticas = armarEstadisticas(conteos, Number(meta.total));
+  return {
+    ...estadisticas,
+    lastResponseAt: meta.ultima_respuesta ? `${meta.ultima_respuesta.replace(' ', 'T')}Z` : null,
+  };
 }
 
 // Caché corta: varios navegadores pidiendo a la vez no multiplican las consultas.
@@ -70,7 +79,14 @@ async function estadisticas() {
 const limpiar = (v) => (typeof v === 'string' ? v.trim().replace(/\s+/g, ' ') : '');
 
 function validar(b = {}) {
+  if (!b || typeof b !== 'object' || Array.isArray(b))
+    return { error: 'El contenido enviado no es válido.' };
+  const codigo = typeof b.codigo === 'string' ? b.codigo.replace(/[\s-]/g, '').toUpperCase() : '';
+  if (!/^[A-F0-9]{20}$/.test(codigo))
+    return { error: 'Escribe un código de invitación válido.' };
   const nombres = limpiar(b.nombres), apellidos = limpiar(b.apellidos);
+  if (/\p{N}/u.test(nombres) || /\p{N}/u.test(apellidos))
+    return { error: 'Los nombres y apellidos no pueden contener números.' };
   if (!nombres || !apellidos || nombres.length > 100 || apellidos.length > 100)
     return { error: 'Escribe tus nombres y apellidos (máximo 100 caracteres cada uno).' };
   if (b.consentimiento !== true) return { error: 'Debes aceptar la autorización para continuar.' };
@@ -87,7 +103,7 @@ function validar(b = {}) {
     } else if (typeof v !== 'string' || !validos.includes(v)) return invalida;
     fila[p.id] = v;
   }
-  return { fila };
+  return { fila, codigoHash: createHash('sha256').update(codigo).digest('hex') };
 }
 
 // Límite simple por IP para que nadie llene la base con envíos automáticos.
@@ -111,14 +127,24 @@ const clientes = new Set();
 const notificar = () => clientes.forEach((c) => c.write('event: cambio\ndata: {}\n\n'));
 
 app.post('/api/respuestas', express.json({ limit: '10kb' }), limitar, async (req, res) => {
-  const { fila, error } = validar(req.body);
+  const { fila, codigoHash, error } = validar(req.body);
   if (error) return res.status(400).json({ error });
   let respaldo;
   try {
     respaldo = db.export();
+    db.run('BEGIN IMMEDIATE');
+    const consumoId = randomUUID();
+    ejecutar(
+      'UPDATE codigos_acceso SET consumo_id = ? WHERE codigo_hash = ? AND consumo_id IS NULL',
+      [consumoId, codigoHash]);
+    if (db.getRowsModified() !== 1) {
+      db.run('ROLLBACK');
+      return res.status(409).json({ error: 'El código no es válido o ya fue utilizado.' });
+    }
     ejecutar(
       `INSERT INTO respuestas (${identificadores.join(', ')}) VALUES (${COLUMNAS.map(() => '?').join(', ')})`,
       COLUMNAS.map((c) => fila[c]));
+    db.run('COMMIT');
     persistir();
     cache.datos = null; // la próxima consulta ya incluye esta respuesta
     notificar();
@@ -165,7 +191,8 @@ const port = Number(process.env.PORT) || 3000;
       ? new SQL.Database(new Uint8Array(fs.readFileSync(archivoDb)))
       : new SQL.Database();
     db.run(crearTabla);
-    if (!fs.existsSync(archivoDb)) persistir();
+    db.run(crearTablaCodigos);
+    persistir();
     app.listen(port, () => console.log(`Vía en http://localhost:${port} (SQLite: ${archivoDb})`));
   } catch (error) {
     console.error('No se pudo inicializar la base de datos SQLite:', error);

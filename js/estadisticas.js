@@ -9,7 +9,7 @@
 const CONFIG = { api: '/api/estadisticas', pollMs: 60000,
   demoMs: 15000 }; // en demo: cada cuántos ms entra una persona simulada (0 = datos fijos)
 const $ = (s) => document.querySelector(s);
-const estado = { preguntas: [], total: 0, cargadoEn: null }; // última respuesta de la API ya normalizada
+const estado = { preguntas: [], total: 0, lastResponseAt: null, cargado: false };
 const cards = new Map();                                      // id de pregunta -> tarjeta del DOM (se reutilizan)
 
 /**
@@ -139,9 +139,13 @@ function setEstado(tipo) {
   e.querySelector('.txt').textContent = { ok: 'Datos actualizados', carga: 'Actualizando…', error: 'Sin conexión con el servidor' }[tipo];
 }
 
-// Muestra la fecha y hora fijas de la última carga de datos (no cuenta el tiempo).
+// Muestra la fecha y hora en que se guardó la respuesta más reciente.
 function mostrarFecha() {
-  $('#hace').textContent = new Date(estado.cargadoEn).toLocaleString('es', {
+  if (!estado.lastResponseAt) {
+    $('#hace').textContent = 'Sin respuestas todavía';
+    return;
+  }
+  $('#hace').textContent = new Date(estado.lastResponseAt).toLocaleString('es', {
     day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false,
   });
 }
@@ -149,12 +153,14 @@ function mostrarFecha() {
 let enCurso = false, pendiente = false; // evita lanzar dos cargas a la vez
 async function cargar() {
   if (enCurso) { pendiente = true; return; }
-  enCurso = true; if (!estado.cargadoEn) setEstado('carga'); // las recargas en segundo plano no cambian el estado
+  enCurso = true; if (!estado.cargado) setEstado('carga'); // las recargas en segundo plano no cambian el estado
   try {
     const d = USAR_DEMO ? await demoDatos()
       : await fetch(CONFIG.api, { headers: { Accept: 'application/json' } }).then((r) => { if (!r.ok) throw new Error(r.status); return r.json(); });
     estado.preguntas = (d.questions || []).map(normalizar);
-    estado.total = d.totalResponses || 0; estado.cargadoEn = Date.now();
+    estado.total = d.totalResponses || 0;
+    estado.lastResponseAt = d.lastResponseAt || null;
+    estado.cargado = true;
     $('#error').hidden = true; setEstado('ok'); render(); mostrarFecha();
   } catch (e) {
     console.error(e); $('#error').hidden = false; setEstado('error'); quitarEsqueleto();

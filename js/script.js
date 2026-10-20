@@ -87,6 +87,9 @@ const renderForm = () => {
     `<section class="form-block" aria-labelledby="${id}"><h3 class="block-title" id="${id}"><strong>${label}</strong> ${title}</h3>${content}</section>`;
 
   let html = section("bloque-datos", "DATOS", "Participante", `<div class="field-row">
+      <div class="text-field"><label for="codigo">Código de invitación</label>
+        <input class="text-input" type="text" id="codigo" name="codigo" maxlength="29" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="XXXX-XXXX-XXXX-XXXX-XXXX" required>
+        <span class="field-hint">Cada código permite enviar una sola respuesta.</span></div>
       <div class="text-field"><label for="nombres">Nombres</label>
         <input class="text-input" type="text" id="nombres" name="nombres" maxlength="100" autocomplete="given-name" placeholder="Tus nombres" required></div>
       <div class="text-field"><label for="apellidos">Apellidos</label>
@@ -122,8 +125,15 @@ form.addEventListener("change", (event) => {
   syncMultiple();
 });
 
+form.addEventListener("input", (event) => {
+  const input = event.target;
+  if (input.name === "nombres" || input.name === "apellidos") {
+    input.value = input.value.replace(/\p{N}/gu, "");
+  }
+});
+
 /** Progreso = campos obligatorios respondidos (datos + 12 preguntas + autorización). */
-const requiredFieldNames = ["nombres", "apellidos", ...PREGUNTAS.map((p) => p.id)];
+const requiredFieldNames = ["codigo", "nombres", "apellidos", ...PREGUNTAS.map((p) => p.id)];
 
 const isAnswered = (name) => {
   if (form.querySelector(`input[name="${name}"]:checked`)) return true;
@@ -145,6 +155,7 @@ form.addEventListener("change", updateProgress);
 /** Arma el objeto con los identificadores de la base de datos. */
 const collectData = () => {
   const data = {
+    codigo: form.elements.codigo.value.trim(),
     nombres: form.elements.nombres.value.trim(),
     apellidos: form.elements.apellidos.value.trim(),
     consentimiento: form.elements.consentimiento.checked,
@@ -207,6 +218,7 @@ form.addEventListener("submit", async (event) => {
 
 resetFormButton.addEventListener("click", () => {
   form.reset();
+  form.elements.codigo.value = "";
   form.hidden = false;
   successState.hidden = true;
   formError.hidden = true;

@@ -13,12 +13,19 @@ const json = (data, status = 200) => new Response(JSON.stringify(data), {
 
 const limpiar = (valor) => (typeof valor === 'string' ? valor.trim().replace(/\s+/g, ' ') : '');
 
-function validar(body) {
+async function validar(body) {
   if (!body || typeof body !== 'object' || Array.isArray(body)) {
     return { error: 'El contenido enviado no es válido.' };
   }
+  const codigo = typeof body.codigo === 'string' ? body.codigo.replace(/[\s-]/g, '').toUpperCase() : '';
+  if (!/^[A-F0-9]{20}$/.test(codigo)) {
+    return { error: 'Escribe un código de invitación válido.' };
+  }
   const nombres = limpiar(body?.nombres);
   const apellidos = limpiar(body?.apellidos);
+  if (/\p{N}/u.test(nombres) || /\p{N}/u.test(apellidos)) {
+    return { error: 'Los nombres y apellidos no pueden contener números.' };
+  }
   if (!nombres || !apellidos || nombres.length > 100 || apellidos.length > 100) {
     return { error: 'Escribe tus nombres y apellidos (máximo 100 caracteres cada uno).' };
   }
@@ -38,7 +45,9 @@ function validar(body) {
     }
     fila[pregunta.id] = valor;
   }
-  return { fila };
+  const codigoHash = [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(codigo)))]
+    .map((byte) => byte.toString(16).padStart(2, '0')).join('');
+  return { fila, codigoHash };
 }
 
 function permitirEnvio(ip) {
@@ -67,12 +76,16 @@ async function obtenerEstadisticas(db) {
     `SELECT '${p.id}' AS pregunta, "${p.id}" AS valor, COUNT(*) AS personas FROM respuestas GROUP BY "${p.id}"`,
   )));
   const filas = resultados.flatMap((resultado) => resultado.results);
-  const meta = await db.prepare('SELECT COUNT(*) AS total FROM respuestas').first();
+  const meta = await db.prepare('SELECT COUNT(*) AS total, MAX(creado_en) AS ultima_respuesta FROM respuestas').first();
   const conteos = {};
   for (const fila of filas) {
     (conteos[fila.pregunta] ??= {})[String(fila.valor)] = Number(fila.personas);
   }
-  return armarEstadisticas(conteos, Number(meta.total));
+  const estadisticas = armarEstadisticas(conteos, Number(meta.total));
+  return {
+    ...estadisticas,
+    lastResponseAt: meta.ultima_respuesta ? `${meta.ultima_respuesta.replace(' ', 'T')}Z` : null,
+  };
 }
 
 async function manejarApi(request, env) {
@@ -96,13 +109,23 @@ async function manejarApi(request, env) {
     }
     const { body, error: errorBody } = await leerBody(request);
     if (errorBody) return json({ error: errorBody }, errorBody.includes('grande') ? 413 : 400);
-    const { fila, error } = validar(body);
+    const { fila, codigoHash, error } = await validar(body);
     if (error) return json({ error }, 400);
 
     try {
-      await env.DB.prepare(
-        `INSERT INTO respuestas (${identificadores.join(', ')}) VALUES (${COLUMNAS.map(() => '?').join(', ')})`,
-      ).bind(...COLUMNAS.map((columna) => fila[columna])).run();
+      const consumoId = crypto.randomUUID();
+      const resultados = await env.DB.batch([
+        env.DB.prepare(
+          'UPDATE codigos_acceso SET consumo_id = ? WHERE codigo_hash = ? AND consumo_id IS NULL',
+        ).bind(consumoId, codigoHash),
+        env.DB.prepare(
+          `INSERT INTO respuestas (${identificadores.join(', ')}) SELECT ${COLUMNAS.map(() => '?').join(', ')} ` +
+          'WHERE EXISTS (SELECT 1 FROM codigos_acceso WHERE consumo_id = ?)',
+        ).bind(...COLUMNAS.map((columna) => fila[columna]), consumoId),
+      ]);
+      if (Number(resultados[1].meta.changes) !== 1) {
+        return json({ error: 'El código no es válido o ya fue utilizado.' }, 409);
+      }
       return json({ ok: true }, 201);
     } catch (dbError) {
       console.error('No se pudo guardar la respuesta:', dbError);

@@ -409,6 +409,7 @@ h1, h2, h3, p { overflow-wrap: anywhere; }
 .text-input { display: block; width: 100%; min-height: 3rem; margin-top: .5rem; padding: .75rem .9rem; border: 1px solid var(--border); border-radius: .7rem; background: var(--surface-raised); color: var(--text); font-size: .82rem; }
 /* Texto de ejemplo atenuado. */
 .text-input::placeholder { color: var(--muted); }
+.text-field .field-hint { display: block; margin: .25rem 0 0; }
 /* Botones de la pantalla final en fila, con salto de línea si no caben. */
 .success-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: .7rem; }
 

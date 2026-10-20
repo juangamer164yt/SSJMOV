@@ -7,7 +7,9 @@
   "scripts": {
     "start": "node server.js",
     "dev:cloudflare": "wrangler dev --local",
-    "deploy": "wrangler deploy"
+    "deploy": "wrangler deploy",
+    "generar-codigos": "node scripts/generar-codigos.js",
+    "cargar-codigos-local": "node scripts/cargar-codigos-local.js"
   },
   "dependencies": {
     "express": "^4.19.2",
