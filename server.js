@@ -7,6 +7,7 @@ const initSqlJs = require('sql.js');
 const { PREGUNTAS, armarEstadisticas } = require('./js/preguntas.js');
 
 const COLUMNAS = ['codigo_acceso', 'correo_hash', 'nombres', 'apellidos', ...PREGUNTAS.map((p) => p.id)];
+const COLUMNAS_ACTUALIZABLES = COLUMNAS.filter((columna) => !['codigo_acceso', 'correo_hash'].includes(columna));
 const archivoDb = process.env.MOBILITY_DB_PATH || path.join(__dirname, 'movilidad.sqlite');
 let SQL;
 let db;
@@ -14,7 +15,8 @@ const identificadores = COLUMNAS.map((c) => `"${c}"`);
 const crearTabla = `CREATE TABLE IF NOT EXISTS respuestas (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   ${identificadores.map((c) => `${c} TEXT NOT NULL`).join(',\n  ')},
-  creado_en TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  creado_en TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  actualizado_en TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 )`;
 function ejecutar(sql, parametros = []) {
   db.run(sql, parametros);
@@ -52,7 +54,7 @@ async function calcularEstadisticas() {
   const sql = PREGUNTAS.map((p) =>
     `SELECT '${p.id}' AS pregunta, "${p.id}" AS valor, COUNT(*) AS personas FROM respuestas GROUP BY "${p.id}"`).join(' UNION ALL ');
   const filas = await consultar(sql);
-  const meta = await consultarUno('SELECT COUNT(*) AS total, MAX(creado_en) AS ultima_respuesta FROM respuestas');
+  const meta = await consultarUno('SELECT COUNT(*) AS total, MAX(COALESCE(actualizado_en, creado_en)) AS ultima_respuesta FROM respuestas');
   const conteos = {};
   filas.forEach((f) => { (conteos[f.pregunta] ??= {})[String(f.valor)] = Number(f.personas); });
   const estadisticas = armarEstadisticas(conteos, Number(meta.total));
@@ -133,12 +135,12 @@ app.post('/api/respuestas', express.json({ limit: '10kb' }), limitar, async (req
   try {
     respaldo = db.export();
     db.run('BEGIN IMMEDIATE');
-    if (consultarUno('SELECT 1 AS existe FROM respuestas WHERE correo_hash = ?', [fila.correo_hash])) {
-      db.run('ROLLBACK');
-      return res.status(409).json({ error: 'Este correo electrónico ya fue utilizado para responder la encuesta.' });
-    }
     ejecutar(
-      `INSERT INTO respuestas (${identificadores.join(', ')}) VALUES (${COLUMNAS.map(() => '?').join(', ')})`,
+      `INSERT INTO respuestas (${identificadores.join(', ')}, "actualizado_en") ` +
+      `VALUES (${COLUMNAS.map(() => '?').join(', ')}, CURRENT_TIMESTAMP) ` +
+      'ON CONFLICT("correo_hash") WHERE "correo_hash" IS NOT NULL DO UPDATE SET ' +
+      `${COLUMNAS_ACTUALIZABLES.map((columna) => `"${columna}" = excluded."${columna}"`).join(', ')}, ` +
+      '"actualizado_en" = CURRENT_TIMESTAMP',
       COLUMNAS.map((c) => fila[c]));
     db.run('COMMIT');
     persistir();
@@ -150,13 +152,8 @@ app.post('/api/respuestas', express.json({ limit: '10kb' }), limitar, async (req
       db.close();
       db = new SQL.Database(respaldo);
     }
-    const correoDuplicado = e.message.includes('UNIQUE constraint failed: respuestas.correo_hash');
-    if (!correoDuplicado) console.error(e);
-    res.status(correoDuplicado ? 409 : 500).json({
-      error: correoDuplicado
-        ? 'Este correo electrónico ya fue utilizado para responder la encuesta.'
-        : 'No se pudo guardar tu respuesta. Inténtalo de nuevo.',
-    });
+    console.error(e);
+    res.status(500).json({ error: 'No se pudo guardar tu respuesta. Inténtalo de nuevo.' });
   }
 });
 
@@ -178,7 +175,8 @@ setInterval(async () => {
   if (!clientes.size) return;
   try {
     const f = await consultarUno('SELECT COUNT(*) AS a, COALESCE(MAX(id), 0) AS b FROM respuestas');
-    const nueva = `${f.a}-${f.b}`;
+    const ultimaRespuesta = await consultarUno('SELECT MAX(COALESCE(actualizado_en, creado_en)) AS c FROM respuestas');
+    const nueva = `${f.a}-${f.b}-${ultimaRespuesta.c || ''}`;
     if (firma !== null && nueva !== firma) notificar();
     firma = nueva;
   } catch (e) { console.error(e); }
@@ -195,6 +193,7 @@ const port = Number(process.env.PORT) || 3000;
     const columnasRespuestas = consultar('PRAGMA table_info(respuestas)').map((columna) => columna.name);
     if (!columnasRespuestas.includes('codigo_acceso')) db.run('ALTER TABLE respuestas ADD COLUMN codigo_acceso TEXT');
     if (!columnasRespuestas.includes('correo_hash')) db.run('ALTER TABLE respuestas ADD COLUMN correo_hash TEXT');
+    if (!columnasRespuestas.includes('actualizado_en')) db.run('ALTER TABLE respuestas ADD COLUMN actualizado_en TEXT');
     db.run('UPDATE respuestas SET codigo_acceso = lower(hex(randomblob(16))) WHERE codigo_acceso IS NULL');
     db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_respuestas_codigo_acceso ON respuestas(codigo_acceso)');
     db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_respuestas_correo_hash ON respuestas(correo_hash) WHERE correo_hash IS NOT NULL');

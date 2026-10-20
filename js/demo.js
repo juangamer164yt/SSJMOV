@@ -5,7 +5,7 @@
    estadísticas reaccionan igual que con el servidor real.
    ===================================================================== */
 const _filas = [];
-const _correosUsados = new Set();
+const _respuestasPorCorreo = new Map();
 let _ultimaRespuestaEn = null;
 
 // Generador pseudoaleatorio con semilla fija: los datos de prueba son los mismos en cada carga.
@@ -45,11 +45,14 @@ function demoSimular() {
 async function demoEnviar(datos) {
   await new Promise((r) => setTimeout(r, 400)); // simula la latencia de la red
   const correo = datos.correo.trim().toLowerCase();
-  if (_correosUsados.has(correo)) throw new Error('Este correo electrónico ya fue utilizado para responder la encuesta.');
-  _correosUsados.add(correo);
   const fila = {};
   PREGUNTAS.forEach((p) => { fila[p.id] = p.tipo === 'multiple' ? _canonica(p, datos[p.id]) : datos[p.id]; });
-  _filas.push(fila);
+  const respuestaExistente = _respuestasPorCorreo.get(correo);
+  if (respuestaExistente) Object.assign(respuestaExistente, fila);
+  else {
+    _filas.push(fila);
+    _respuestasPorCorreo.set(correo, fila);
+  }
   _ultimaRespuestaEn = new Date().toISOString();
 }
 

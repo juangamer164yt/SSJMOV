@@ -2,6 +2,7 @@ import catalog from '../js/preguntas.js';
 
 const { PREGUNTAS, armarEstadisticas } = catalog;
 const COLUMNAS = ['codigo_acceso', 'correo_hash', 'nombres', 'apellidos', ...PREGUNTAS.map((p) => p.id)];
+const COLUMNAS_ACTUALIZABLES = COLUMNAS.filter((columna) => !['codigo_acceso', 'correo_hash'].includes(columna));
 const identificadores = COLUMNAS.map((c) => `"${c}"`);
 const enviosPorIp = new Map();
 const MAX_CUERPO = 10 * 1024;
@@ -81,7 +82,7 @@ async function obtenerEstadisticas(db) {
     `SELECT '${p.id}' AS pregunta, "${p.id}" AS valor, COUNT(*) AS personas FROM respuestas GROUP BY "${p.id}"`,
   )));
   const filas = resultados.flatMap((resultado) => resultado.results);
-  const meta = await db.prepare('SELECT COUNT(*) AS total, MAX(creado_en) AS ultima_respuesta FROM respuestas').first();
+  const meta = await db.prepare('SELECT COUNT(*) AS total, MAX(COALESCE(actualizado_en, creado_en)) AS ultima_respuesta FROM respuestas').first();
   const conteos = {};
   for (const fila of filas) {
     (conteos[fila.pregunta] ??= {})[String(fila.valor)] = Number(fila.personas);
@@ -119,13 +120,14 @@ async function manejarApi(request, env) {
 
     try {
       await env.DB.prepare(
-        `INSERT INTO respuestas (${identificadores.join(', ')}) VALUES (${COLUMNAS.map(() => '?').join(', ')})`,
+        `INSERT INTO respuestas (${identificadores.join(', ')}, "actualizado_en") ` +
+        `VALUES (${COLUMNAS.map(() => '?').join(', ')}, CURRENT_TIMESTAMP) ` +
+        'ON CONFLICT("correo_hash") WHERE "correo_hash" IS NOT NULL DO UPDATE SET ' +
+        `${COLUMNAS_ACTUALIZABLES.map((columna) => `"${columna}" = excluded."${columna}"`).join(', ')}, ` +
+        '"actualizado_en" = CURRENT_TIMESTAMP',
       ).bind(...COLUMNAS.map((columna) => fila[columna])).run();
       return json({ ok: true }, 201);
     } catch (dbError) {
-      if (String(dbError.message).includes('UNIQUE constraint failed: respuestas.correo_hash')) {
-        return json({ error: 'Este correo electrónico ya fue utilizado para responder la encuesta.' }, 409);
-      }
       console.error('No se pudo guardar la respuesta:', dbError);
       return json({ error: 'No se pudo guardar tu respuesta. Inténtalo de nuevo.' }, 500);
     }
