@@ -1,0 +1,19 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "via-movilidad",
+  "main": "worker/index.mjs",
+  "compatibility_date": "2026-10-18",
+  "assets": {
+    "directory": "./",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*"]
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "via-movilidad",
+      "database_id": "39a31871-287d-4e43-9121-ebc0e9f57199",
+      "migrations_dir": "migrations"
+    }
+  ]
+}
