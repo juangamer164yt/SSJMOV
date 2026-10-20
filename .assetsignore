@@ -1,0 +1,11 @@
+node_modules/
+movilidad.sqlite
+server.js
+package.json
+package-lock.json
+migrations/
+worker/
+.git/
+.github/
+wrangler.jsonc
+README.md
