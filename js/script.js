@@ -37,13 +37,40 @@ menuToggle.addEventListener("click", () => setMenuOpen(true));
 closeMenuButton.addEventListener("click", () => setMenuOpen(false));
 scrim.addEventListener("click", () => setMenuOpen(false));
 
-sidebar.querySelectorAll("a").forEach((link) => {
+const sidebarLinks = [...sidebar.querySelectorAll('a[href^="#"]')];
+const setActiveSidebarLink = (targetId) => {
+  sidebarLinks.forEach((link) => {
+    const isActive = link.hash === `#${targetId}`;
+    link.classList.toggle("active", isActive);
+    if (isActive) link.setAttribute("aria-current", "location");
+    else link.removeAttribute("aria-current");
+  });
+};
+
+sidebarLinks.forEach((link) => {
   link.addEventListener("click", () => {
+    setActiveSidebarLink(link.hash.slice(1));
     if (window.matchMedia("(max-width: 760px)").matches) {
       body.classList.remove("menu-open");
       menuToggle.setAttribute("aria-expanded", "false");
     }
   });
+});
+
+const sidebarSections = sidebarLinks
+  .map((link) => document.querySelector(link.hash))
+  .filter(Boolean);
+const sectionObserver = new IntersectionObserver((entries) => {
+  const visibleSection = entries
+    .filter((entry) => entry.isIntersecting)
+    .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+  if (visibleSection) setActiveSidebarLink(visibleSection.target.id);
+}, { rootMargin: "-25% 0px -65% 0px", threshold: [0, 0.1, 0.25, 0.5, 0.75, 1] });
+
+sidebarSections.forEach((section) => sectionObserver.observe(section));
+window.addEventListener("hashchange", () => {
+  const targetId = window.location.hash.slice(1);
+  if (sidebarSections.some((section) => section.id === targetId)) setActiveSidebarLink(targetId);
 });
 
 document.addEventListener("keydown", (event) => {
