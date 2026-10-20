@@ -87,13 +87,13 @@ const renderForm = () => {
     `<section class="form-block" aria-labelledby="${id}"><h3 class="block-title" id="${id}"><strong>${label}</strong> ${title}</h3>${content}</section>`;
 
   let html = section("bloque-datos", "DATOS", "Participante", `<div class="field-row">
-      <div class="text-field"><label for="codigo">Código de invitación</label>
-        <input class="text-input" type="text" id="codigo" name="codigo" maxlength="29" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="XXXX-XXXX-XXXX-XXXX-XXXX" required>
-        <span class="field-hint">Cada código permite enviar una sola respuesta.</span></div>
       <div class="text-field"><label for="nombres">Nombres</label>
         <input class="text-input" type="text" id="nombres" name="nombres" maxlength="100" autocomplete="given-name" placeholder="Tus nombres" required></div>
       <div class="text-field"><label for="apellidos">Apellidos</label>
         <input class="text-input" type="text" id="apellidos" name="apellidos" maxlength="100" autocomplete="family-name" placeholder="Tus apellidos" required></div>
+      <div class="text-field"><label for="correo">Correo electrónico</label>
+        <input class="text-input" type="email" id="correo" name="correo" maxlength="254" autocomplete="email" placeholder="tu@correo.com" required>
+        <span class="field-hint">Cada correo puede registrar una sola respuesta.</span></div>
     </div>`);
 
   BLOQUES.forEach((title, index) => {
@@ -133,12 +133,12 @@ form.addEventListener("input", (event) => {
 });
 
 /** Progreso = campos obligatorios respondidos (datos + 12 preguntas + autorización). */
-const requiredFieldNames = ["codigo", "nombres", "apellidos", ...PREGUNTAS.map((p) => p.id)];
+const requiredFieldNames = ["correo", "nombres", "apellidos", ...PREGUNTAS.map((p) => p.id)];
 
 const isAnswered = (name) => {
   if (form.querySelector(`input[name="${name}"]:checked`)) return true;
   const field = form.elements[name];
-  return Boolean(field && field.type === "text" && field.value.trim());
+  return Boolean(field && ["text", "email"].includes(field.type) && field.value.trim());
 };
 
 const updateProgress = () => {
@@ -155,7 +155,7 @@ form.addEventListener("change", updateProgress);
 /** Arma el objeto con los identificadores de la base de datos. */
 const collectData = () => {
   const data = {
-    codigo: form.elements.codigo.value.trim(),
+    correo: form.elements.correo.value.trim(),
     nombres: form.elements.nombres.value.trim(),
     apellidos: form.elements.apellidos.value.trim(),
     consentimiento: form.elements.consentimiento.checked,
@@ -218,7 +218,6 @@ form.addEventListener("submit", async (event) => {
 
 resetFormButton.addEventListener("click", () => {
   form.reset();
-  form.elements.codigo.value = "";
   form.hidden = false;
   successState.hidden = true;
   formError.hidden = true;

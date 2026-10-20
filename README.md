@@ -48,21 +48,10 @@ Este proyecto ya está inicializado en la rama `main`. Reemplaza `USUARIO/REPOSI
 
 Los campos de nombres y apellidos eliminan números al escribir y el servidor también rechaza envíos que los incluyan.
 
-### Códigos de invitación de un solo uso
-La encuesta requiere un código de invitación; cada código solo puede registrar una respuesta. Genera un lote desde PowerShell:
+### Un envío por correo electrónico
+El formulario solicita el correo y solo permite una respuesta por dirección, sin distinguir mayúsculas ni espacios al inicio o al final. La base guarda un hash del correo, no la dirección legible; el hash sigue siendo un dato seudonimizado, no anónimo. El correo no se verifica: alguien puede usar una dirección ajena o distinta. Al actualizar una base D1 ya existente, aplica las migraciones con `npx.cmd wrangler d1 migrations apply via-movilidad --remote`. Las respuestas anteriores a este cambio no tienen un correo asociado y no se pueden deduplicar retroactivamente.
 
-```powershell
-npm.cmd run generar-codigos -- 100
-```
-
-El comando muestra los códigos para distribuirlos y crea `codigos-acceso.sql` con sus hashes. Guarda la lista de códigos en un lugar seguro: no se pueden recuperar desde la base. El archivo SQL está excluido de Git. Para el servidor SQLite local, detén el servidor y ejecuta `npm.cmd run cargar-codigos-local`. Para Cloudflare D1, aplica la migración nueva y carga los códigos:
-
-```powershell
-npx.cmd wrangler d1 migrations apply via-movilidad --remote
-npx.cmd wrangler d1 execute via-movilidad --remote --file=codigos-acceso.sql
-```
-
-No compartas el SQL generado con los participantes. Al usar el modo demo, los códigos son simulados en memoria y no ofrecen protección para producción.
+Cada respuesta recibe además un identificador interno único generado automáticamente. No se muestra ni se solicita a quien responde; no es un código de verificación del correo ni sustituye la regla de una respuesta por correo.
 
 Los archivos públicos están en la raíz (`index.html`, `css/`, `js/`); el servidor y la base local también están en la raíz (`server.js`, `movilidad.sqlite`). No se usan carpetas `public/` ni `server/`. `.assetsignore` limita los archivos públicos que Cloudflare sirve para no exponer los archivos internos del proyecto.
 
@@ -99,4 +88,4 @@ migrations/              esquema inicial de la base D1
 En las preguntas múltiples, la última opción ("Otro", "Ninguno"…) es **excluyente** y representa la región fuera del diagrama. Se guardan como códigos separados por coma (`metro,bus`). Para cambiar una pregunta, edita `preguntas.js` y actualiza el esquema de la base si cambia algún identificador.
 
 ## Para producción
-Nombres y apellidos son datos personales: informa a las personas quién administra los datos, para qué se usarán y cómo solicitar su eliminación; si responden menores de edad, se requiere autorización de su representante legal. La API de estadísticas solo devuelve agregados. El Worker valida las respuestas y limita envíos por IP en cada instancia. El archivo de SQLite local está ignorado por Git para no subir respuestas privadas por error. Fotos de Unsplash y tipografía de Google Fonts requieren internet.
+Nombres, apellidos y el hash del correo son datos personales: informa a las personas quién administra los datos, para qué se usarán y cómo solicitar su eliminación; si responden menores de edad, se requiere autorización de su representante legal. La API de estadísticas solo devuelve agregados. El Worker valida las respuestas y limita envíos por IP en cada instancia. El archivo de SQLite local está ignorado por Git para no subir respuestas privadas por error. Fotos de Unsplash y tipografía de Google Fonts requieren internet.

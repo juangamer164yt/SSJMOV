@@ -1,7 +1,7 @@
 import catalog from '../js/preguntas.js';
 
 const { PREGUNTAS, armarEstadisticas } = catalog;
-const COLUMNAS = ['nombres', 'apellidos', ...PREGUNTAS.map((p) => p.id)];
+const COLUMNAS = ['codigo_acceso', 'correo_hash', 'nombres', 'apellidos', ...PREGUNTAS.map((p) => p.id)];
 const identificadores = COLUMNAS.map((c) => `"${c}"`);
 const enviosPorIp = new Map();
 const MAX_CUERPO = 10 * 1024;
@@ -17,9 +17,9 @@ async function validar(body) {
   if (!body || typeof body !== 'object' || Array.isArray(body)) {
     return { error: 'El contenido enviado no es válido.' };
   }
-  const codigo = typeof body.codigo === 'string' ? body.codigo.replace(/[\s-]/g, '').toUpperCase() : '';
-  if (!/^[A-F0-9]{20}$/.test(codigo)) {
-    return { error: 'Escribe un código de invitación válido.' };
+  const correo = typeof body.correo === 'string' ? body.correo.trim().toLowerCase() : '';
+  if (correo.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo)) {
+    return { error: 'Escribe un correo electrónico válido.' };
   }
   const nombres = limpiar(body?.nombres);
   const apellidos = limpiar(body?.apellidos);
@@ -31,7 +31,14 @@ async function validar(body) {
   }
   if (body.consentimiento !== true) return { error: 'Debes aceptar la autorización para continuar.' };
 
-  const fila = { nombres, apellidos };
+  const correoHash = [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(correo)))]
+    .map((byte) => byte.toString(16).padStart(2, '0')).join('');
+  const fila = {
+    codigo_acceso: crypto.randomUUID(),
+    correo_hash: correoHash,
+    nombres,
+    apellidos,
+  };
   for (const pregunta of PREGUNTAS) {
     const validos = pregunta.opciones.map(([codigo]) => codigo);
     const invalida = { error: `Respuesta no válida en: ${pregunta.texto}` };
@@ -45,9 +52,7 @@ async function validar(body) {
     }
     fila[pregunta.id] = valor;
   }
-  const codigoHash = [...new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(codigo)))]
-    .map((byte) => byte.toString(16).padStart(2, '0')).join('');
-  return { fila, codigoHash };
+  return { fila };
 }
 
 function permitirEnvio(ip) {
@@ -109,25 +114,18 @@ async function manejarApi(request, env) {
     }
     const { body, error: errorBody } = await leerBody(request);
     if (errorBody) return json({ error: errorBody }, errorBody.includes('grande') ? 413 : 400);
-    const { fila, codigoHash, error } = await validar(body);
+    const { fila, error } = await validar(body);
     if (error) return json({ error }, 400);
 
     try {
-      const consumoId = crypto.randomUUID();
-      const resultados = await env.DB.batch([
-        env.DB.prepare(
-          'UPDATE codigos_acceso SET consumo_id = ? WHERE codigo_hash = ? AND consumo_id IS NULL',
-        ).bind(consumoId, codigoHash),
-        env.DB.prepare(
-          `INSERT INTO respuestas (${identificadores.join(', ')}) SELECT ${COLUMNAS.map(() => '?').join(', ')} ` +
-          'WHERE EXISTS (SELECT 1 FROM codigos_acceso WHERE consumo_id = ?)',
-        ).bind(...COLUMNAS.map((columna) => fila[columna]), consumoId),
-      ]);
-      if (Number(resultados[1].meta.changes) !== 1) {
-        return json({ error: 'El código no es válido o ya fue utilizado.' }, 409);
-      }
+      await env.DB.prepare(
+        `INSERT INTO respuestas (${identificadores.join(', ')}) VALUES (${COLUMNAS.map(() => '?').join(', ')})`,
+      ).bind(...COLUMNAS.map((columna) => fila[columna])).run();
       return json({ ok: true }, 201);
     } catch (dbError) {
+      if (String(dbError.message).includes('UNIQUE constraint failed: respuestas.correo_hash')) {
+        return json({ error: 'Este correo electrónico ya fue utilizado para responder la encuesta.' }, 409);
+      }
       console.error('No se pudo guardar la respuesta:', dbError);
       return json({ error: 'No se pudo guardar tu respuesta. Inténtalo de nuevo.' }, 500);
     }

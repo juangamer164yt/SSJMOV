@@ -3,10 +3,10 @@ const fs = require('fs');
 const { createHash, randomUUID } = require('crypto');
 const express = require('express');
 const initSqlJs = require('sql.js');
-// Mismo catálogo que usa el formulario: una sola fuente de verdad para preguntas, códigos y columnas.
+// Mismo catálogo que usa el formulario: una sola fuente de verdad para preguntas y columnas.
 const { PREGUNTAS, armarEstadisticas } = require('./js/preguntas.js');
 
-const COLUMNAS = ['nombres', 'apellidos', ...PREGUNTAS.map((p) => p.id)];
+const COLUMNAS = ['codigo_acceso', 'correo_hash', 'nombres', 'apellidos', ...PREGUNTAS.map((p) => p.id)];
 const archivoDb = process.env.MOBILITY_DB_PATH || path.join(__dirname, 'movilidad.sqlite');
 let SQL;
 let db;
@@ -16,11 +16,6 @@ const crearTabla = `CREATE TABLE IF NOT EXISTS respuestas (
   ${identificadores.map((c) => `${c} TEXT NOT NULL`).join(',\n  ')},
   creado_en TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 )`;
-const crearTablaCodigos = `CREATE TABLE IF NOT EXISTS codigos_acceso (
-  codigo_hash TEXT PRIMARY KEY,
-  consumo_id TEXT UNIQUE
-)`;
-
 function ejecutar(sql, parametros = []) {
   db.run(sql, parametros);
 }
@@ -81,9 +76,9 @@ const limpiar = (v) => (typeof v === 'string' ? v.trim().replace(/\s+/g, ' ') : 
 function validar(b = {}) {
   if (!b || typeof b !== 'object' || Array.isArray(b))
     return { error: 'El contenido enviado no es válido.' };
-  const codigo = typeof b.codigo === 'string' ? b.codigo.replace(/[\s-]/g, '').toUpperCase() : '';
-  if (!/^[A-F0-9]{20}$/.test(codigo))
-    return { error: 'Escribe un código de invitación válido.' };
+  const correo = typeof b.correo === 'string' ? b.correo.trim().toLowerCase() : '';
+  if (correo.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo))
+    return { error: 'Escribe un correo electrónico válido.' };
   const nombres = limpiar(b.nombres), apellidos = limpiar(b.apellidos);
   if (/\p{N}/u.test(nombres) || /\p{N}/u.test(apellidos))
     return { error: 'Los nombres y apellidos no pueden contener números.' };
@@ -91,7 +86,12 @@ function validar(b = {}) {
     return { error: 'Escribe tus nombres y apellidos (máximo 100 caracteres cada uno).' };
   if (b.consentimiento !== true) return { error: 'Debes aceptar la autorización para continuar.' };
 
-  const fila = { nombres, apellidos };
+  const fila = {
+    codigo_acceso: randomUUID(),
+    correo_hash: createHash('sha256').update(correo).digest('hex'),
+    nombres,
+    apellidos,
+  };
   for (const p of PREGUNTAS) {
     const validos = p.opciones.map(([codigo]) => codigo);
     const invalida = { error: `Respuesta no válida en: ${p.texto}` };
@@ -103,7 +103,7 @@ function validar(b = {}) {
     } else if (typeof v !== 'string' || !validos.includes(v)) return invalida;
     fila[p.id] = v;
   }
-  return { fila, codigoHash: createHash('sha256').update(codigo).digest('hex') };
+  return { fila };
 }
 
 // Límite simple por IP para que nadie llene la base con envíos automáticos.
@@ -127,19 +127,15 @@ const clientes = new Set();
 const notificar = () => clientes.forEach((c) => c.write('event: cambio\ndata: {}\n\n'));
 
 app.post('/api/respuestas', express.json({ limit: '10kb' }), limitar, async (req, res) => {
-  const { fila, codigoHash, error } = validar(req.body);
+  const { fila, error } = validar(req.body);
   if (error) return res.status(400).json({ error });
   let respaldo;
   try {
     respaldo = db.export();
     db.run('BEGIN IMMEDIATE');
-    const consumoId = randomUUID();
-    ejecutar(
-      'UPDATE codigos_acceso SET consumo_id = ? WHERE codigo_hash = ? AND consumo_id IS NULL',
-      [consumoId, codigoHash]);
-    if (db.getRowsModified() !== 1) {
+    if (consultarUno('SELECT 1 AS existe FROM respuestas WHERE correo_hash = ?', [fila.correo_hash])) {
       db.run('ROLLBACK');
-      return res.status(409).json({ error: 'El código no es válido o ya fue utilizado.' });
+      return res.status(409).json({ error: 'Este correo electrónico ya fue utilizado para responder la encuesta.' });
     }
     ejecutar(
       `INSERT INTO respuestas (${identificadores.join(', ')}) VALUES (${COLUMNAS.map(() => '?').join(', ')})`,
@@ -154,8 +150,13 @@ app.post('/api/respuestas', express.json({ limit: '10kb' }), limitar, async (req
       db.close();
       db = new SQL.Database(respaldo);
     }
-    console.error(e);
-    res.status(500).json({ error: 'No se pudo guardar tu respuesta. Inténtalo de nuevo.' });
+    const correoDuplicado = e.message.includes('UNIQUE constraint failed: respuestas.correo_hash');
+    if (!correoDuplicado) console.error(e);
+    res.status(correoDuplicado ? 409 : 500).json({
+      error: correoDuplicado
+        ? 'Este correo electrónico ya fue utilizado para responder la encuesta.'
+        : 'No se pudo guardar tu respuesta. Inténtalo de nuevo.',
+    });
   }
 });
 
@@ -191,7 +192,12 @@ const port = Number(process.env.PORT) || 3000;
       ? new SQL.Database(new Uint8Array(fs.readFileSync(archivoDb)))
       : new SQL.Database();
     db.run(crearTabla);
-    db.run(crearTablaCodigos);
+    const columnasRespuestas = consultar('PRAGMA table_info(respuestas)').map((columna) => columna.name);
+    if (!columnasRespuestas.includes('codigo_acceso')) db.run('ALTER TABLE respuestas ADD COLUMN codigo_acceso TEXT');
+    if (!columnasRespuestas.includes('correo_hash')) db.run('ALTER TABLE respuestas ADD COLUMN correo_hash TEXT');
+    db.run('UPDATE respuestas SET codigo_acceso = lower(hex(randomblob(16))) WHERE codigo_acceso IS NULL');
+    db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_respuestas_codigo_acceso ON respuestas(codigo_acceso)');
+    db.run('CREATE UNIQUE INDEX IF NOT EXISTS idx_respuestas_correo_hash ON respuestas(correo_hash) WHERE correo_hash IS NOT NULL');
     persistir();
     app.listen(port, () => console.log(`Vía en http://localhost:${port} (SQLite: ${archivoDb})`));
   } catch (error) {
