@@ -24,8 +24,8 @@ async function validar(body) {
   }
   const nombres = limpiar(body?.nombres);
   const apellidos = limpiar(body?.apellidos);
-  if (/\p{N}/u.test(nombres) || /\p{N}/u.test(apellidos)) {
-    return { error: 'Los nombres y apellidos no pueden contener números.' };
+  if ((nombres && !/^[\p{L}\p{M} ]+$/u.test(nombres)) || (apellidos && !/^[\p{L}\p{M} ]+$/u.test(apellidos))) {
+    return { error: 'Los nombres y apellidos solo pueden contener letras y espacios.' };
   }
   if (!nombres || !apellidos || nombres.length > 100 || apellidos.length > 100) {
     return { error: 'Escribe tus nombres y apellidos (máximo 100 caracteres cada uno).' };

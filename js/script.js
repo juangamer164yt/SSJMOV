@@ -155,7 +155,7 @@ form.addEventListener("change", (event) => {
 form.addEventListener("input", (event) => {
   const input = event.target;
   if (input.name === "nombres" || input.name === "apellidos") {
-    input.value = input.value.replace(/\p{N}/gu, "");
+    input.value = input.value.replace(/[^\p{L}\p{M} ]/gu, "");
   }
 });
 

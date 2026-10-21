@@ -1,91 +1,134 @@
-# Vía — Encuesta de movilidad ciudadana (formulario + estadísticas)
+# Vía — guía del proyecto
 
-Una sola página: portada, encuesta de 11 preguntas y sección de **Estadísticas** en tiempo real. Tema oscuro/claro; la portada también cambia con el tema.
+Vía es una página web para responder una encuesta sobre movilidad y consultar sus resultados. Esta guía explica, en lenguaje sencillo, qué hace cada parte del proyecto. Los nombres entre comillas invertidas son los nombres reales de archivos o elementos del código.
 
-## Publicación gratuita con GitHub y Cloudflare
+## ¿Qué ocurre cuando alguien responde?
 
-GitHub guarda el código; Cloudflare publica la página y almacena las respuestas en D1, una base de datos SQLite en la nube. La página seguirá disponible con el computador apagado. Cloudflare ofrece una dirección `workers.dev` gratuita; un dominio propio se compra por separado. Las estadísticas se actualizan automáticamente cada minuto y al enviar una respuesta. La fecha mostrada corresponde al momento en que se registró la respuesta más reciente, no a la última consulta de la página.
+1. La página muestra la encuesta y sus preguntas.
+2. La persona escribe sus datos, elige sus respuestas y acepta el aviso de consentimiento.
+3. Al enviar, la página manda las respuestas al servicio que las guarda.
+4. Si la persona ya había respondido usando el mismo correo, se reemplaza su respuesta anterior en vez de contarla dos veces. El correo no se comprueba: no se confirma que quien lo escribió sea su dueño.
+5. La página pide los resultados y los presenta en gráficos. Los gráficos muestran cantidades agrupadas, no la respuesta de cada persona.
 
-### Configuración inicial
-1. Crea un repositorio en GitHub. Como la encuesta guarda nombres y respuestas personales, es recomendable elegir **Private**.
-2. Crea una cuenta gratuita en Cloudflare e instala Node.js 22 o posterior en tu computador.
-3. Abre PowerShell en la carpeta del proyecto e instala dependencias e inicia sesión:
+El sistema guarda una versión codificada del correo para reconocer si se repite, no el correo escrito tal cual. Esa versión sigue siendo un dato relacionado con la persona y no debe tratarse como información completamente anónima. También guarda un código interno aleatorio para cada respuesta.
 
-   ```powershell
-   npm.cmd install
-   npx.cmd wrangler login
-   npx.cmd wrangler d1 create via-movilidad
-   ```
+## Partes de la página
 
-4. El comando de D1 muestra un `database_id`. En `wrangler.jsonc`, reemplaza `REEMPLAZAR_CON_DATABASE_ID` por ese valor.
-5. Crea las tablas de la base remota:
+### `index.html`
 
-   ```powershell
-   npx.cmd wrangler d1 migrations apply via-movilidad --remote
-   ```
+Contiene el contenido y la estructura de la página: la portada, la información sobre transportes, la encuesta, los resultados y la información del proyecto. También incluye el menú, los botones y los espacios donde aparecen las preguntas y los gráficos.
 
-6. En el panel de Cloudflare crea un API Token con permisos para desplegar Workers y administrar D1. En GitHub abre **Settings → Secrets and variables → Actions** y crea los secretos `CLOUDFLARE_API_TOKEN` y `CLOUDFLARE_ACCOUNT_ID`.
-7. Sube el proyecto a la rama `main`. GitHub Actions desplegará automáticamente el sitio; la URL `workers.dev` aparecerá en **Workers & Pages** en Cloudflare.
+La página está preparada para verse en teléfonos y para poder recorrerse con el teclado y herramientas de accesibilidad.
 
-**Importante:** no subas `node_modules`. Esa carpeta contiene miles de archivos y ocupa alrededor de 190 MB; GitHub permite como máximo 100 archivos por carga desde la página web y también limita el tamaño de archivos individuales. Ya está excluida en `.gitignore`. Usa los comandos de Git desde PowerShell para subir solo el código fuente; al instalarlo, `npm.cmd install` reconstruye las dependencias usando `package-lock.json`.
+### `css/styles.css`
 
-La página web de GitHub no permite importar carpetas ocultas como `.github`; Git sí las incluye. Por eso, usa los comandos de PowerShell de abajo: así se sube también `.github/workflows/deploy.yml`, que activa la publicación automática.
+Decide cómo se ve la página: colores, tamaños, espacios, tarjetas, gráficos y menú. También ajusta la distribución para que funcione en pantallas grandes y pequeñas, y ofrece temas oscuro y claro.
 
-Para subir el proyecto desde PowerShell, después de crear el repositorio vacío en GitHub:
+### `js/config.js`
 
-```powershell
-git add .
-git commit -m "Preparar encuesta para publicación"
-git remote add origin https://github.com/USUARIO/REPOSITORIO.git
-git push -u origin main
-```
+Indica si la página usa respuestas de ejemplo. Con `USAR_DEMO` desactivado, se conecta al servicio que guarda las respuestas. Activado, muestra datos ficticios y no guarda respuestas reales.
 
-Este proyecto ya está inicializado en la rama `main`. Reemplaza `USUARIO/REPOSITORIO` por los datos del repositorio. Después de la primera publicación, cada `git push` a `main` actualiza el sitio. No será necesario dejar `npm` abierto en tu PC.
+### `js/preguntas.js`
 
-**Prueba local del Worker:** `npm.cmd run dev:cloudflare`. **Servidor local con un archivo SQLite:** `npm.cmd start`; estos modos son independientes de la base D1 online.
+Contiene las 11 preguntas, sus opciones y los grupos en que se organizan. La página usa esta misma lista para mostrar la encuesta y preparar los resultados.
 
-**Modo de demostración (sin guardar datos):** pon `USAR_DEMO = true` en `js/config.js`. Los datos serán simulados.
+| N.º | Nombre interno | Tipo de respuesta |
+|---:|---|---|
+| 1 | `rango_edad` | Una opción |
+| 2 | `ocupacion` | Varias opciones; 2 grupos en el gráfico |
+| 3 | `motivo_viaje` | Varias opciones; 3 grupos en el gráfico |
+| 4 | `medio_principal` | Varias opciones; 3 grupos en el gráfico |
+| 5 | `horario_viaje` | Varias opciones; 3 grupos en el gráfico |
+| 6 | `transbordo` | Varias opciones; 3 grupos en el gráfico |
+| 7 | `disposicion_vehiculos` | Varias opciones; 3 grupos en el gráfico |
+| 8 | `percepcion_calidad` | Varias opciones; 3 grupos en el gráfico |
+| 9 | `calificacion_vias` | Varias opciones; 3 grupos en el gráfico |
+| 10 | `problema_movilidad` | Varias opciones; 3 grupos en el gráfico |
+| 11 | `mejora_movilidad` | Varias opciones; 3 grupos en el gráfico |
 
-Los campos de nombres y apellidos eliminan números al escribir y el servidor también rechaza envíos que los incluyan.
+En las preguntas de varias opciones, la última opción es excluyente: si se elige, no se puede combinar con las demás. Los nombres internos de las preguntas también se usan para guardar las respuestas; cambiarlos requiere ajustar la base de datos.
 
-### Un envío por correo electrónico
-El formulario solicita el correo y usa su hash normalizado (sin distinguir mayúsculas ni espacios al inicio o al final) para encontrar la respuesta existente. Si la persona vuelve a enviar el formulario con el mismo correo, se actualizan sus nombres y respuestas en la misma fila; no se agrega otra. La fecha de última respuesta refleja también esa actualización. La base guarda el hash, no la dirección legible; sigue siendo un dato seudonimizado, no anónimo. El correo no se verifica: alguien puede usar una dirección ajena o distinta. Para actualizar una base D1 ya existente, aplica las migraciones con `npx.cmd wrangler d1 migrations apply via-movilidad --remote`. Las respuestas anteriores a la incorporación del correo no se pueden relacionar retroactivamente con una dirección.
+### `js/script.js`
 
-Cada respuesta recibe además un identificador interno único generado automáticamente. No se muestra ni se solicita a quien responde; no es un código de verificación del correo ni sustituye la regla de una respuesta por correo.
+Hace que la página responda a las acciones de las personas. Abre y cierra el menú, cambia el tema, muestra las preguntas, revisa que se completen los campos necesarios y envía la respuesta. En los campos de nombres y apellidos solo permite letras (incluidas las acentuadas) y espacios. También informa si hubo un problema o si el envío se completó.
 
-Los archivos públicos están en la raíz (`index.html`, `css/`, `js/`); el servidor y la base local también están en la raíz (`server.js`, `movilidad.sqlite`). No se usan carpetas `public/` ni `server/`. `.assetsignore` limita los archivos públicos que Cloudflare sirve para no exponer los archivos internos del proyecto.
+Al empezar otra respuesta con el mismo correo, se actualiza la respuesta ya guardada.
 
-## Estructura
-```
-worker/index.mjs        API de Cloudflare Workers: envíos y estadísticas con D1
-wrangler.jsonc          configuración del Worker, recursos estáticos y D1
-.github/workflows/deploy.yml  despliegue automático al subir cambios a main
-index.html              portada + encuesta + estadísticas (HTML5 semántico)
-css/styles.css          estilos comentados bloque por bloque
-js/preguntas.js         CATÁLOGO ÚNICO: preguntas, opciones e identificadores (formulario, servidor y demo)
-js/script.js            menú, tema y formulario
-js/estadisticas.js, venn.js, demo.js  sección de estadísticas
-server.js               servidor SQLite local para pruebas
-movilidad.sqlite        base SQLite local (ignorada por Git)
-migrations/              esquema inicial de la base D1
-```
+### `js/estadisticas.js`
 
-## Preguntas e identificadores
-| # | Identificador | Tipo | Conjuntos del Venn |
-|---|---|---|---|
-| 1 | `rango_edad` | una opción (barras) | — |
-| 2 | `ocupacion` | múltiple | Trabajo · Estudio (**2 conjuntos**) |
-| 3 | `motivo_viaje` | múltiple | Trabajo o estudio · Compras y trámites · Recreación |
-| 4 | `medio_principal` | múltiple | Vehículo privado · Transporte público · A pie / bici |
-| 5 | `horario_viaje` | múltiple | Mañana · Tarde · Noche |
-| 6 | `transbordo` | múltiple | Metro / tranvía · Bus / colectivo · Vehículo propio |
-| 7 | `disposicion_vehiculos` | múltiple | Carro · Moto · Bici / monopatín |
-| 8 | `percepcion_calidad` | múltiple | Rapidez · Economía · Seguridad y comodidad |
-| 9 | `calificacion_vias` | múltiple | Estado de vías · Transporte público · Andenes y ciclorrutas |
-| 10 | `problema_movilidad` | múltiple | Tráfico · Transporte público deficiente · Inseguridad |
-| 11 | `mejora_movilidad` | múltiple | Transporte público · Vías y tráfico · Andenes / ciclorrutas |
+Pide los resultados y actualiza los gráficos, el total de respuestas y la fecha de la última respuesta. También permite filtrar los resultados y muestra mensajes si no hay datos o si ocurre un problema de conexión.
 
-En las preguntas múltiples, la última opción ("Otro", "Ninguno"…) es **excluyente** y representa la región fuera del diagrama. Se guardan como códigos separados por coma (`metro,bus`). Para cambiar una pregunta, edita `preguntas.js` y actualiza el esquema de la base si cambia algún identificador.
+### `js/venn.js`
 
-## Para producción
-Nombres, apellidos y el hash del correo son datos personales: informa a las personas quién administra los datos, para qué se usarán y cómo solicitar su eliminación; si responden menores de edad, se requiere autorización de su representante legal. La API de estadísticas solo devuelve agregados. El Worker valida las respuestas y limita envíos por IP en cada instancia. El archivo de SQLite local está ignorado por Git para no subir respuestas privadas por error. Fotos de Unsplash y tipografía de Google Fonts requieren internet.
+Crea los gráficos de círculos superpuestos que muestran opciones compartidas entre varios grupos. Permite explorar las cantidades con el ratón o el teclado.
+
+### `js/demo.js`
+
+Proporciona datos inventados para probar la página sin usar respuestas reales. Los datos se pierden al recargar la página, así que esta opción no sirve para guardar resultados de una encuesta real.
+
+## Dónde se guardan las respuestas
+
+La aplicación puede guardar los datos de dos maneras:
+
+- **En la versión publicada:** usa una base de datos de Cloudflare.
+- **En una computadora para pruebas:** usa una base local llamada `movilidad.sqlite`.
+
+### `worker/index.mjs`
+
+Es la parte que recibe y procesa las solicitudes en la versión publicada. Revisa que los datos tengan el formato esperado, guarda o actualiza las respuestas y prepara los resultados agrupados. También limita la cantidad de envíos desde una misma dirección de internet en un periodo corto.
+
+### `server.js`
+
+Es el servicio para ejecutar la aplicación en una computadora durante el desarrollo. Ofrece las mismas funciones básicas que la versión publicada y guarda los datos en `movilidad.sqlite`.
+
+Si se cambia algo en la base de datos, avisa a las páginas que estén abiertas para que puedan actualizar sus resultados.
+
+### `movilidad.sqlite`
+
+Es el archivo local que contiene las respuestas cuando se usa `server.js`. No es un documento de texto y no se debe editar manualmente. Puede contener datos personales; por eso el proyecto evita incluirlo en las copias que se publican en Git.
+
+## Cambios en la base de datos publicada
+
+Los archivos de `migrations/` describen cambios que se aplican a la base de datos publicada. Se conservan en orden para que una instalación existente pueda actualizarse sin empezar de cero.
+
+| Archivo | En palabras sencillas |
+|---|---|
+| `migrations/0001_create_respuestas.sql` | Crea el espacio donde se guardan los datos personales básicos, las respuestas y la fecha de creación. |
+| `migrations/0002_create_codigos_acceso.sql` | Añadió una tabla para códigos de invitación de un solo uso. La encuesta actual no la utiliza. |
+| `migrations/0003_unique_email_hash.sql` | Añade el dato codificado del correo y evita guardar más de una respuesta actual por cada correo. |
+| `migrations/0004_add_internal_access_code.sql` | Añade un identificador aleatorio para cada respuesta. |
+| `migrations/0005_add_response_update_time.sql` | Añade la fecha en que se actualizó cada respuesta por última vez. |
+
+La versión local hace los cambios necesarios al iniciar. Las respuestas antiguas que se guardaron antes de registrar el correo no se pueden asociar automáticamente a una persona.
+
+## Archivos de configuración y publicación
+
+### `wrangler.jsonc`
+
+Indica a Cloudflare qué archivos y servicios necesita para publicar y ejecutar la aplicación.
+
+### `package.json`
+
+Lista las herramientas que necesita el proyecto y los comandos disponibles. Por ejemplo, `start` inicia la versión local, `dev:cloudflare` inicia una prueba con Cloudflare y `deploy` publica la aplicación.
+
+### `package-lock.json`
+
+Guarda las versiones exactas de las herramientas instaladas para que las instalaciones del proyecto sean consistentes. No contiene las funciones de la encuesta.
+
+### `.github/workflows/deploy.yml`
+
+Automatiza la publicación cuando se actualiza la rama `main` del proyecto o cuando alguien la inicia manualmente desde GitHub. Usa credenciales guardadas de forma privada en la configuración de GitHub.
+
+### `.assetsignore`
+
+Indica qué archivos no deben enviarse como parte de los recursos públicos de la página.
+
+### `.gitignore`
+
+Indica qué archivos deben quedarse fuera del historial compartido del proyecto, como herramientas instaladas, configuraciones privadas y bases de datos que podrían contener información personal.
+
+## Carpetas creadas automáticamente
+
+- `node_modules/` contiene las herramientas que necesita el proyecto; npm puede volver a instalarlas a partir de los archivos de configuración.
+- `.wrangler/` guarda archivos temporales de las pruebas locales con Cloudflare.
+- `.git/` contiene el historial y la información de seguimiento del proyecto.

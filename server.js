@@ -82,8 +82,8 @@ function validar(b = {}) {
   if (correo.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo))
     return { error: 'Escribe un correo electrónico válido.' };
   const nombres = limpiar(b.nombres), apellidos = limpiar(b.apellidos);
-  if (/\p{N}/u.test(nombres) || /\p{N}/u.test(apellidos))
-    return { error: 'Los nombres y apellidos no pueden contener números.' };
+  if ((nombres && !/^[\p{L}\p{M} ]+$/u.test(nombres)) || (apellidos && !/^[\p{L}\p{M} ]+$/u.test(apellidos)))
+    return { error: 'Los nombres y apellidos solo pueden contener letras y espacios.' };
   if (!nombres || !apellidos || nombres.length > 100 || apellidos.length > 100)
     return { error: 'Escribe tus nombres y apellidos (máximo 100 caracteres cada uno).' };
   if (b.consentimiento !== true) return { error: 'Debes aceptar la autorización para continuar.' };
